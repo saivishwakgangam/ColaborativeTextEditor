@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Text</title>
+	<style>
+		.editor
+			{
+		margin : 50px;
+		padding:20px;
+		border:solid 1px gray;
+		min-width: 200px;
+		height: 100%;
+		}
+
+		h1 {
+			text-align:center;
+		}
+
+		.top{
+			display:inline-block;
+		}
+	</style>
+</head>
+<body>
+		<div class="top">	
+			<h1> Colaborative Text Editor </h1> 
+			<button> share </button>
+		</div>
+		<br>
+		Username:<input type="text" id="Username">  </input>
+		<input type="submit" onClick="test1()">
+		<br>
+		Connect_to:<input type="text" id="Connect_to">  </input>
+		<input type="submit" onClick="test2()" >
+		<br>
+		Enter your msg:<input type="text" id="msg">
+		<input type="submit" onclick="send()">
+		<br>
+		last message:<p id="last_msg"></p>
+		<p id="last_key_code"></p>
+		<p id="cursor_details">cursor_line=0 cursor_pos=0</p>
+		<p id="editor_details">editor details:</p>
+		<div class="editor" contenteditable="true" onkeyup="test(event)">
+		</div>
+
+		
+	</body>
+	<script src="https://unpkg.com/peerjs@1.3.2/dist/peerjs.min.js"></script>
+	<script src="./main.js"></script>
+</html>
+
+
