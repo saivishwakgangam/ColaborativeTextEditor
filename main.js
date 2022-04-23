@@ -220,9 +220,9 @@ class CRDT{
         var last_line=this.chars[max_line_no]
         var cur_line=0
         
-        console.log(char)
+        console.log("debug",char.compare(this.chars[0][0]))
         
-        if(this.chars.length==0 || this.chars[0].length==0 || char.compare(this.chars[0])==-1)
+        if(this.chars.length==0 || this.chars[0].length==0 || char.compare(this.chars[0][0])==-1)
             return [0,0]
         
         var lastchar=last_line.at(-1)
@@ -337,12 +337,14 @@ class ConnectionManager
     }
     initialize(conn)
     {
-        conn.send({'method':'initialize','data':crdt.chars})
+        var op=JSON.stringify({'method':'initialize','data':crdt.chars})
+        conn.send(op)
     }
     senddata(charobj)
     {
         this.connections.forEach(conn => {
-            conn.send({ 'method':'remote_insert','data':charobj})
+            var op=JSON.stringify({'method':'remote_insert','data':charobj})
+            conn.send(op)
         });
     }
 }
@@ -430,17 +432,46 @@ function test1(){
             cmanager.initialize(con)
             
             conn.on("data",function(data){
+                data=JSON.parse(data)
+                console.log(data['method'])
                 if(data['method']=='initialize')
                 {
-                    crdt=data['data']
+                    crdt.chars=[]
+                    for(let i=0;i<data['data'].length;++i)
+                    {
+                        var line=data['data'][i]
+                        crdt.chars.push([])
+                        for(let j=0;j<line.length;++j)
+                        {
+                            var x=line[j]
+                            var identifier_list=[]
+                            for(let k=0;k<x.position.length;++k)
+                            {
+                                var identifier=new Identifier(x.position[k].digit,x.siteid)
+                                identifier_list.push(identifier)
+                            }
+                            var char=new Char(identifier_list,x.value)
+                            crdt.chars[i].push(char)
+                        }
+                    }
                     editor.setValue(crdt.tostring)
                 }
                 else
                 {
+
                     if(data['method']=='remote_insert')
                     {
-                        console.log(typeof data['data'])
-                        console.log(crdt.remote_insert(data['data']))
+                        var id_list=[]
+                        var temp=data['data']
+                        for(let i=0;i<temp.position.length;++i)
+                        {
+                            var id=new Identifier(temp.position[i].digit,temp.position[i].siteid)
+                            id_list.push(id)
+                        }
+                        var char=new Char(id_list,temp.value)
+                        var position=crdt.remote_insert(char)
+
+                        editor.replaceRange(char.value,{'line':position[0],'ch':position[1]},{'line':position[0],'ch':position[1]},'remote')
                     }
                 }
         });
@@ -459,17 +490,47 @@ function test2(){
         cmanager.connections.push(con)
         con.on("data",function(data){
             //document.getElementById("last_msg").innerHTML=data
-           
+            data=JSON.parse(data)
+            console.log(data['method'])
             if(data['method']=='initialize')
             {
-                crdt.chars=data['data']
+                crdt.chars=[]
+                for(let i=0;i<data['data'].length;++i)
+                {
+                    line=data['data'][i]
+                    crdt.chars.push([])
+                    for(let j=0;j<line.length;++j)
+                    {
+                        x=line[j]
+                        identifier_list=[]
+                        for(let k=0;k<x.position.length;++k)
+                        {
+                            identifier=new Identifier(x.position[k].digit,x.siteid)
+                            identifier_list.push(identifier)
+                        }
+                        char=new Char(identifier_list,x.value)
+                        crdt.chars[i].push(char)
+                    }
+                }
+                console.log(crdt.chars)
                 editor.setValue(crdt.tostring())
             }
             else
             {
-                if(data['method']=='remote_insert'){
-                    console.log(typeof data['data'])
-                    console.log(crdt.remote_insert(data['data']))
+                if(data['method']=='remote_insert')
+                {
+                    var id_list=[]
+                    var temp=data['data']
+                    for(let i=0;i<temp.position.length;++i)
+                    {
+                        var id=new Identifier(temp.position[i].digit,temp.position[i].siteid)
+                        id_list.push(id)
+                    }
+                    var char=new Char(id_list,temp.value)
+                    var position=crdt.remote_insert(char)
+
+                    editor.replaceRange(char.value,{'line':position[0],'ch':position[1]},{'line':position[0],'ch':position[1]},'remote')
+                    console.log("after insertion",crdt.chars)
                 }
             }
         })
