@@ -19,9 +19,9 @@ class Identifier {
         {
             if(this.digit>id.digit) return 1;
             else
-            if(this.siteid<id.siteid) return -1;
+            if(this.site<id.site) return -1;
             else 
-            if(this.siteid>id.siteid) return 1;
+            if(this.site>id.site) return 1;
             else
             return 0;
         }
@@ -76,7 +76,7 @@ class CRDT{
     constructor(){
         this.chars=[[]]
         this.cmanager=""
-        
+
     }
     
     getPreviousPosition(pos)
@@ -133,13 +133,13 @@ class CRDT{
     generate_pos_btw(prev_pos,next_pos,new_pos=[])
     {
         
-        var id1=prev_pos[0] || new Identifier(0,"user1")
-        var id2=next_pos[0] || new Identifier(32,"user1")
+        var id1=prev_pos[0] || new Identifier(0,this.cmanager.username)
+        var id2=next_pos[0] || new Identifier(9999,this.cmanager.username)
 
         if(id2.digit-id1.digit>1)   
         {
             var digit=this.generateId(id1.digit,id2.digit)
-            new_pos.push(new Identifier(digit,"user1"))
+            new_pos.push(new Identifier(digit,this.cmanager.username))
             return new_pos
         }
         else
@@ -215,6 +215,77 @@ class CRDT{
     }
     remote_insert(char)
     {
+        var res=this.findinsert(char)
+        console.log(res)
+        var pos={'line':res[0],'ch':res[1]}
+        this.insertchar(char,pos)
+        editor.replaceRange(char.value,pos,pos,'remote')
+    }
+    remote_delete(char)
+    {
+        var res=this.find(char)
+        console.log("delete position",res)
+        if(!res) return;
+        var pos={'line':res[0],'ch':res[1]}
+        this.chars[res[0]].splice(res[1],1)
+        var to;
+        if(char.value=='\n')
+            to={'line':res[0]+1,'ch':0}
+        else
+            to={'line':res[0],'ch':res[1]+1}
+        editor.replaceRange("",{'line':res[0],'ch':res[1]},to,"+remote_dlt")
+
+    }
+
+    find(char)
+    {
+        var min_line_no=0
+        var max_line_no=this.chars.length-1
+        var last_line=this.chars[max_line_no]
+        var cur_line=0
+
+        console.log("first compare",char.compare(this.chars[0][0]))
+        if(this.chars.length==0 || this.chars[0].length==0 || char.compare(this.chars[0][0])==-1)
+            return false
+
+        var lastchar=last_line.at(-1)
+        if(char.compare(lastchar)==1)
+        return false
+
+        while(min_line_no<max_line_no-1)
+        {
+            cur_line=Math.floor((min_line_no+max_line_no)/2)
+            lastchar=this.chars[cur_line].at(-1)
+            if(char.compare(lastchar)==0)
+                return [cur_line,this.chars[cur_line].length-1]
+            else
+            {
+                if(char.compare(lastchar)==1)
+                min_line_no=cur_line
+                else
+                max_line_no=cur_line
+            }
+        }
+        var lcmin=this.chars[min_line_no].at(-1)
+        var lcmax=this.chars[max_line_no].at(-1)
+
+        if(char.compare(lcmin)==-1)
+        {
+            var ch=this.findcharinline(char,min_line_no)
+            return [min_line_no,ch]
+        }
+        else
+        {
+            var ch=this.findcharinline(char,max_line_no)
+            return [max_line_no,ch]
+
+        }
+    }
+
+    
+
+    findinsert(char)
+    {
         var min_line_no=0
         var max_line_no=this.chars.length-1
         var last_line=this.chars[max_line_no]
@@ -268,6 +339,40 @@ class CRDT{
             var ch=this.findindexinline(char,max_line_no)
             return [max_line_no,ch]
         }
+
+    }
+
+    findcharinline(char,line_no)
+    {
+        var low=0
+        var high=this.chars[line_no].length-1
+        var line=this.chars[line_no]
+
+        if(line.length==0 || char.compare(line[0])==-1)
+        return false;
+
+        if(char.compare(line[high])==1)
+        return false
+
+        while(low+1<high)
+        {
+            var mid=Math.floor((low+high)/2)
+            if(char.compare(line[mid])==0)
+            return [line_no,mid]
+            else
+            {
+                if(char.compare(line[mid])==-1)
+                high=mid
+                else
+                low=mid
+            }
+        }
+    
+        if(char.compare(line[low])==0)
+        return low
+        if(char.compare(line[high])==0)
+        return high
+        return false
 
     }
 
@@ -369,7 +474,7 @@ $(document).ready(function(){
     
     editor.on('change',function(cMirror,changeobj){
         
-        
+        console.log(changeobj)
         if(changeobj.origin=="+input")
         {
             var ch=changeobj.text[0]
@@ -378,15 +483,6 @@ $(document).ready(function(){
                 ch="\n"
             }
             crdt.local_insert(ch,changeobj.from)
-            // for(let i=0;i<crdt.chars.length;++i)
-            // {
-            //     x=crdt.chars[i]
-            //     out=""
-            //     for(let j=0;j<x.length;++j)
-            //     {
-            //         console.log(x[j].tofloat())
-            //     }
-            // }
         }
         else{
             if(changeobj.origin=="+delete")
@@ -402,7 +498,14 @@ $(document).ready(function(){
                     console.log("concat",crdt.chars[line])
                     crdt.chars.splice(line+1)
                 }
+                to_send_char=crdt.chars[line][ch]
+                console.log('to send char',to_send_char)
                 crdt.chars[line].splice(ch,1)
+                crdt.cmanager.connections.forEach(conn => {
+                    var op=JSON.stringify({'method':'remote_delete','data':to_send_char})
+                    conn.send(op)
+                });
+                
             }
         }
         console.log(crdt.chars)
@@ -418,7 +521,7 @@ function test1(){
     cmanager=new ConnectionManager(username)
     crdt.cmanager=cmanager
     peer=new Peer(username,{
-        host:'localhost',
+        host:'10.2.133.29',
         port:9000,
         path:"/myapp"
     });
@@ -447,7 +550,7 @@ function test1(){
                             var identifier_list=[]
                             for(let k=0;k<x.position.length;++k)
                             {
-                                var identifier=new Identifier(x.position[k].digit,x.siteid)
+                                var identifier=new Identifier(x.position[k].digit,x.position[k].site)
                                 identifier_list.push(identifier)
                             }
                             var char=new Char(identifier_list,x.value)
@@ -465,13 +568,27 @@ function test1(){
                         var temp=data['data']
                         for(let i=0;i<temp.position.length;++i)
                         {
-                            var id=new Identifier(temp.position[i].digit,temp.position[i].siteid)
+                            var id=new Identifier(temp.position[i].digit,temp.position[i].site)
                             id_list.push(id)
                         }
                         var char=new Char(id_list,temp.value)
-                        var position=crdt.remote_insert(char)
-
-                        editor.replaceRange(char.value,{'line':position[0],'ch':position[1]},{'line':position[0],'ch':position[1]},'remote')
+                        crdt.remote_insert(char)
+                    }
+                    else
+                    {
+                        if(data['method']=='remote_delete')
+                        {
+                            var id_list=[]
+                            var temp=data['data']
+                            for(let i=0;i<temp.position.length;++i)
+                            {
+                                var id=new Identifier(temp.position[i].digit,temp.position[i].site)
+                                id_list.push(id)
+                            }
+                            var char=new Char(id_list,temp.value)
+                            console.log(char)
+                            crdt.remote_delete(char)
+                        }
                     }
                 }
         });
@@ -486,6 +603,7 @@ function test2(){
     console.log("inside test 2")
     dest_user_id=document.getElementById("Connect_to").value
     con=peer.connect(dest_user_id)
+    console.log(con)
     con.on("open",function(){
         cmanager.connections.push(con)
         con.on("data",function(data){
@@ -505,7 +623,7 @@ function test2(){
                         identifier_list=[]
                         for(let k=0;k<x.position.length;++k)
                         {
-                            identifier=new Identifier(x.position[k].digit,x.siteid)
+                            identifier=new Identifier(x.position[k].digit,x.position[k].site)
                             identifier_list.push(identifier)
                         }
                         char=new Char(identifier_list,x.value)
@@ -523,14 +641,29 @@ function test2(){
                     var temp=data['data']
                     for(let i=0;i<temp.position.length;++i)
                     {
-                        var id=new Identifier(temp.position[i].digit,temp.position[i].siteid)
+                        var id=new Identifier(temp.position[i].digit,temp.position[i].site)
                         id_list.push(id)
                     }
                     var char=new Char(id_list,temp.value)
-                    var position=crdt.remote_insert(char)
+                    crdt.remote_insert(char)
 
-                    editor.replaceRange(char.value,{'line':position[0],'ch':position[1]},{'line':position[0],'ch':position[1]},'remote')
                     console.log("after insertion",crdt.chars)
+                }
+                else
+                {
+                    if(data['method']=='remote_delete')
+                    {
+                        var id_list=[]
+                        var temp=data['data']
+                        console.log(temp)
+                        for(let i=0;i<temp.position.length;++i)
+                        {
+                            var id=new Identifier(temp.position[i].digit,temp.position[i].site)
+                            id_list.push(id)
+                        }
+                        var char=new Char(id_list,temp.value)
+                        crdt.remote_delete(char)
+                    }
                 }
             }
         })
