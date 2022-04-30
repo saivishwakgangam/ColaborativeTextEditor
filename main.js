@@ -478,17 +478,23 @@ class ConnectionManager
     }
 }
 
+$(window).on('beforeunload',function(){
+    msg=JSON.stringify({'method':'close','data':username})
+    crdt.cmanager.connections.forEach(conn => {
+    conn.send(msg)
+    });
+    return null
+})
+
 
 $(document).ready(function(){
     crdt=new CRDT(cmanager)
     var code=$(".codemirror-textarea")[0]
-
-    
-
-
     editor=CodeMirror.fromTextArea(code,{
         lineNumbers:true,
-        lineWrapping:true
+        lineWrapping:true,
+        readOnly:true,
+        smartIndent:false
     });
 
     $("#username_submit_id").on("click",function(){
@@ -499,7 +505,9 @@ $(document).ready(function(){
         test2()
     });
 
-   
+    $("#username_connect_id").on("click",function(){
+        document.getElementById()
+    });
    
     
     editor.on('change',function(cMirror,changeobj){
@@ -546,73 +554,62 @@ $(document).ready(function(){
     });
 
 });
-function test1(){
-    
-    username=document.getElementById("Username").value    
-    cmanager=new ConnectionManager(username)
-    crdt.cmanager=cmanager
-    peer=new Peer(username,{
-        host:'10.2.135.186',
-        port:9000,
-        path:"/myapp"
-    });
-    peer.on("open",function(id){
-        console.log("My peer id is ",id)
-        })
-    peer.on("connection",function(conn){
-        var con=conn
-        conn.on("open",function(){   
-            console.log("recieved connection",conn)
-            cmanager.connections.push(conn)
-            cmanager.initialize(conn)
-            
-            conn.on("data",function(data){
-                data=JSON.parse(data)
-                console.log(data['method'])
-                if(data['method']=='initialize')
-                {
-                    crdt.chars=[]
-                    for(let i=0;i<data['data'].length;++i)
-                    {
-                        var line=data['data'][i]
-                        crdt.chars.push([])
-                        for(let j=0;j<line.length;++j)
-                        {
-                            var x=line[j]
-                            var identifier_list=[]
-                            for(let k=0;k<x.position.length;++k)
-                            {
-                                var identifier=new Identifier(x.position[k].digit,x.position[k].site)
-                                identifier_list.push(identifier)
-                            }
-                            var char=new Char(identifier_list,x.value)
-                            crdt.chars[i].push(char)
-                        }
-                    }
-                    editor.setValue(crdt.tostring)
-                }
-                else
-                {
 
-                    if(data['method']=='remote_insert')
+function create_peer()
+{
+    username=document.getElementById("Username").value
+    if(username=="")
+    {
+        alert("please enter username")
+        return false;
+    }
+    else
+    {
+        peer=new Peer(username,{
+            host:'10.1.38.163',
+            port:9000,
+            path:"/myapp"
+        })
+        peer.on("open",function(id){
+            console.log("My peer id is ",id)
+            })
+        peer.on("connection",function(conn){
+            var con=conn
+            console.log(conn)
+            conn.on("open",function(){   
+                console.log("recieved connection",conn)
+                cmanager.connections.push(conn)
+                cmanager.initialize(conn)
+                
+                conn.on("data",function(data){
+                    data=JSON.parse(data)
+                    console.log(data['method'])
+                    if(data['method']=='initialize')
                     {
-                        var id_list=[]
-                        var temp=data['data']
-                        for(let i=0;i<temp.position.length;++i)
+                        crdt.chars=[]
+                        for(let i=0;i<data['data'].length;++i)
                         {
-                            var id=new Identifier(temp.position[i].digit,temp.position[i].site)
-                            id_list.push(id)
+                            var line=data['data'][i]
+                            crdt.chars.push([])
+                            for(let j=0;j<line.length;++j)
+                            {
+                                var x=line[j]
+                                var identifier_list=[]
+                                for(let k=0;k<x.position.length;++k)
+                                {
+                                    var identifier=new Identifier(x.position[k].digit,x.position[k].site)
+                                    identifier_list.push(identifier)
+                                }
+                                var char=new Char(identifier_list,x.value)
+                                crdt.chars[i].push(char)
+                            }
                         }
-                        var char=new Char(id_list,temp.value)
-                        crdt.cmanager.broadcast(char,conn,data['method'])
-                        console.log('remote_insert',char)
-                        console.log('before remote_insert',crdt.chars)
-                        crdt.remote_insert(char)
-                        console.log('after remote insert',crdt.chars)
+                        editor.setValue(crdt.tostring)
                     }
                     else
                     {
-                        if(data['method']=='remote_delete')
+    
+                        if(data['method']=='remote_insert')
                         {
                             var id_list=[]
                             var temp=data['data']
@@ -623,29 +620,55 @@ function test1(){
                             }
                             var char=new Char(id_list,temp.value)
                             crdt.cmanager.broadcast(char,conn,data['method'])
-                            console.log('remote_delete',char)
-                            // console.log('remote delete crdt',crdt.chars)
-                            // console.log('')
-                            crdt.remote_delete(char)
-                            console.log('after remote delete crdt',crdt.chars)
+                            console.log('remote_insert',char)
+                            console.log('before remote_insert',crdt.chars)
+                            a=editor.getCursor()
+                            crdt.remote_insert(char)
+                            editor.setCursor(a)
+                            console.log('after remote insert',crdt.chars)
+                        }
+                        else
+                        {
+                            if(data['method']=='remote_delete')
+                            {
+                                var id_list=[]
+                                var temp=data['data']
+                                for(let i=0;i<temp.position.length;++i)
+                                {
+                                    var id=new Identifier(temp.position[i].digit,temp.position[i].site)
+                                    id_list.push(id)
+                                }
+                                var char=new Char(id_list,temp.value)
+                                crdt.cmanager.broadcast(char,conn,data['method'])
+                                console.log('remote_delete',char)
+                                // console.log('remote delete crdt',crdt.chars)
+                                // console.log('')
+                                crdt.remote_delete(char)
+                                console.log('after remote delete crdt',crdt.chars)
+                            }
+                            else
+                            {
+                                if(data['method']=='connect')
+                                {
+                                    connect(data['data'])
+                                }
+                            }
                         }
                     }
-                }
+            });
+            
+            });
         });
-        
-        });
-        
-    
-    });
+    }
 }
 
-function test2(){
-    console.log("inside test 2")
-    dest_user_id=document.getElementById("Connect_to").value
-    con=peer.connect(dest_user_id)
-    console.log(con)
+
+
+function connect(peerId)
+{
+    con=peer.connect(peerId)
     con.on("open",function(){
-        cmanager.connections.push(con)
+        crdt.cmanager.connections.push(con)
         con.on("data",function(data){
             //document.getElementById("last_msg").innerHTML=data
             data=JSON.parse(data)
@@ -688,8 +711,9 @@ function test2(){
                     
                     var char=new Char(id_list,temp.value)
                     crdt.cmanager.broadcast(char,con,data['method'])
+                    a=editor.getCursor()
                     crdt.remote_insert(char)
-
+                    editor.setCursor(a)
                     console.log("after insertion",crdt.chars)
                 }
                 else
@@ -711,13 +735,37 @@ function test2(){
                         crdt.remote_delete(char)
                         console.log('after remote delete crdt',crdt.chars)
                     }
+                    else
+                    {
+                        if(data['method']=='close')
+                            {
+                                
+                            }
+                    }
                 }
             }
         })
         alert("connected")
         
     });
+    con.on("error",function(e){
+        alert(e.type)
+    })
+}
+
+function test1(){
     
+    editor.setOption('readOnly',false)
+    cmanager=new ConnectionManager(username)
+    crdt.cmanager=cmanager
+    create_peer()
+}
+
+function test2(){
+    
+    editor.setOption('readOnly',false)
+    dest_user_id=document.getElementById("Connect_to").value
+    connect(dest_user_id)
 }
 function test3(data){
     editor.setValue(data)
