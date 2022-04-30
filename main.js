@@ -271,7 +271,9 @@ class CRDT{
 
         if(char.compare(lcmin)==-1)
         {
+            
             var ch=this.findcharinline(char,min_line_no)
+            console.log("hiiiii",ch)
             return [min_line_no,ch]
         }
         else
@@ -291,7 +293,7 @@ class CRDT{
         var last_line=this.chars[max_line_no]
         var cur_line=0
         
-        console.log("debug",char.compare(this.chars[0][0]))
+        //console.log("debug",char.compare(this.chars[0][0]))
         
         if(this.chars.length==0 || this.chars[0].length==0 || char.compare(this.chars[0][0])==-1)
             return [0,0]
@@ -344,6 +346,7 @@ class CRDT{
 
     findcharinline(char,line_no)
     {
+
         var low=0
         var high=this.chars[line_no].length-1
         var line=this.chars[line_no]
@@ -358,7 +361,7 @@ class CRDT{
         {
             var mid=Math.floor((low+high)/2)
             if(char.compare(line[mid])==0)
-            return [line_no,mid]
+            return mid
             else
             {
                 if(char.compare(line[mid])==-1)
@@ -367,7 +370,8 @@ class CRDT{
                 low=mid
             }
         }
-    
+        console.log("low",low)
+        console.log("high",high)
         if(char.compare(line[low])==0)
         return low
         if(char.compare(line[high])==0)
@@ -452,12 +456,24 @@ class ConnectionManager
             conn.send(op)
         });
     }
+    broadcast(charobj,parent)
+    {
+        this.connections.forEach(conn => {
+            if(conn!=parent)
+            var op=JSON.stringify({'method':'remote_insert','data':charobj})
+            conn.send(op)
+        })
+    }
 }
 
 
 $(document).ready(function(){
     crdt=new CRDT(cmanager)
     var code=$(".codemirror-textarea")[0]
+
+    
+
+
     editor=CodeMirror.fromTextArea(code,{
         lineNumbers:true,
         lineWrapping:true
@@ -471,10 +487,12 @@ $(document).ready(function(){
         test2()
     });
 
+   
+   
     
     editor.on('change',function(cMirror,changeobj){
         
-        console.log(changeobj)
+        console.log("change",changeobj)
         if(changeobj.origin=="+input")
         {
             var ch=changeobj.text[0]
@@ -483,6 +501,8 @@ $(document).ready(function(){
                 ch="\n"
             }
             crdt.local_insert(ch,changeobj.from)
+            console.log('crdt after local insert')
+            console.log(crdt.chars)
         }
         else{
             if(changeobj.origin=="+delete")
@@ -505,23 +525,65 @@ $(document).ready(function(){
                     var op=JSON.stringify({'method':'remote_delete','data':to_send_char})
                     conn.send(op)
                 });
-                
+                console.log('crdt after local delete')
+                console.log(crdt.chars)
             }
         }
-        console.log(crdt.chars)
+       
     });
 
+
+
+    
+    
     
 
+    // var eta_ms=new Date(2022,03,30,9,8).getTime()-Date.now()
+    // console.log(eta_ms)
+
+    // setTimeout(function(){
+    //     console.log("Time up",username)
+    //     if(username=='user1')
+    //     {
+    //         console.log('user1 time out inserting')
+    //         editor.replaceRange('i',{'line':0,'ch':3},{'line':0,'ch':3},"+input")
+    //     }
+    //     else
+    //     {
+    //         if(username=='user2')
+    //         {
+    //             console.log('user2 time out deleting')
+    //             line=0
+    //             ch=3
+    //             console.log("line",line,"char pos",ch)
+    //             console.log("deleted",crdt.chars[line][ch].value)
+    //             if(crdt.chars[line][ch].value=='\n')
+    //             {
+
+    //                 crdt.chars[line]=crdt.chars[line].concat(crdt.chars[line+1])
+    //                 console.log("concat",crdt.chars[line])
+    //                 crdt.chars.splice(line+1)
+    //             }
+    //             to_send_char=crdt.chars[line][ch]
+    //             console.log('to send char',to_send_char)
+    //             crdt.chars[line].splice(ch,1)
+    //             crdt.cmanager.connections.forEach(conn => {
+    //                 var op=JSON.stringify({'method':'remote_delete','data':to_send_char})
+    //                 conn.send(op)
+    //             });
+    //         }
+    //     }
+    // },eta_ms);   
+    
 
 });
 function test1(){
     
-    username=document.getElementById("Username").value
+    username=document.getElementById("Username").value    
     cmanager=new ConnectionManager(username)
     crdt.cmanager=cmanager
     peer=new Peer(username,{
-        host:'10.2.133.29',
+        host:'10.2.135.186',
         port:9000,
         path:"/myapp"
     });
@@ -529,10 +591,11 @@ function test1(){
         console.log("My peer id is ",id)
         })
     peer.on("connection",function(conn){
-        con=conn
+        var con=conn
         conn.on("open",function(){   
-            cmanager.connections.push(con)
-            cmanager.initialize(con)
+            console.log("recieved connection",conn)
+            cmanager.connections.push(conn)
+            cmanager.initialize(conn)
             
             conn.on("data",function(data){
                 data=JSON.parse(data)
@@ -572,7 +635,10 @@ function test1(){
                             id_list.push(id)
                         }
                         var char=new Char(id_list,temp.value)
+                        console.log('remote_insert',char)
+                        console.log('before remote_insert',crdt.chars)
                         crdt.remote_insert(char)
+                        console.log('after remote insert',crdt.chars)
                     }
                     else
                     {
@@ -586,8 +652,11 @@ function test1(){
                                 id_list.push(id)
                             }
                             var char=new Char(id_list,temp.value)
-                            console.log(char)
+                            console.log('remote_delete',char)
+                            console.log('remote delete crdt',crdt.chars)
+                            // console.log('')
                             crdt.remote_delete(char)
+                            console.log('after remote delete crdt',crdt.chars)
                         }
                     }
                 }
@@ -662,7 +731,10 @@ function test2(){
                             id_list.push(id)
                         }
                         var char=new Char(id_list,temp.value)
+                        console.log('remote_delete',char)
+                        console.log('remote delete crdt',crdt.chars)
                         crdt.remote_delete(char)
+                        // console.log('after remote delete crdt',crdt.chars)
                     }
                 }
             }
