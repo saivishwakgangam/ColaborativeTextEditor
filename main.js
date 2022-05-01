@@ -73,7 +73,7 @@ class Char {
     
 }
 class CRDT{
-    constructor(){
+    constructor(cmanager){
         this.chars=[[]]
         this.cmanager=""
 
@@ -132,7 +132,7 @@ class CRDT{
 
     generate_pos_btw(prev_pos,next_pos,new_pos=[])
     {
-        
+        console.log(this.cmanager.username)
         var id1=prev_pos[0] || new Identifier(0,this.cmanager.username)
         var id2=next_pos[0] || new Identifier(9999,this.cmanager.username)
 
@@ -283,14 +283,20 @@ class CRDT{
 
         if(char.compare(lcmin)<=0)
         {
-            
+            console.log(min_line_no)
             var ch=this.findcharinline(char,min_line_no)
             console.log("hiiiii",ch)
+            if(ch===false){
+                return false
+            }
             return [min_line_no,ch]
         }
         else
         {
             var ch=this.findcharinline(char,max_line_no)
+            if(ch===false){
+                return false
+            }
             return [max_line_no,ch]
 
         }
@@ -362,7 +368,7 @@ class CRDT{
         var low=0
         var high=this.chars[line_no].length-1
         var line=this.chars[line_no]
-
+        console.log(low,high,line)
         if(line.length==0 || char.compare(line[0])==-1)
         return false;
 
@@ -382,8 +388,8 @@ class CRDT{
                 low=mid
             }
         }
-        console.log("low",low)
-        console.log("high",high)
+        console.log("low",low,char.compare(line[low]))
+        console.log("high",high,char.compare(line[high]))
         if(char.compare(line[low])==0)
         return low
         if(char.compare(line[high])==0)
@@ -488,27 +494,38 @@ $(window).on('beforeunload',function(){
 
 
 $(document).ready(function(){
+    $(".card_connect").hide()
     crdt=new CRDT(cmanager)
     var code=$(".codemirror-textarea")[0]
     editor=CodeMirror.fromTextArea(code,{
         lineNumbers:true,
         lineWrapping:true,
         readOnly:true,
-        smartIndent:false
+        smartIndent:false,
+        theme:'freckle'
     });
+    editor.setSize(null,500)
+    $("#create").on("click",function(){
 
-    $("#username_submit_id").on("click",function(){
-        test1()
+        x=test1()
+        if(x==true){
+            $(".card_username").hide()
+        }
+        
+    });
+    $("#connect").on("click",function(){
+        username
+        x=test1()
+        if(x==true){
+            $(".card_username").hide()
+            $(".card_connect").show()
+        }
     });
 
     $("#destid_submit_id").on("click",function(){
+        $(".card_connect").hide()
         test2()
-    });
-
-    $("#username_connect_id").on("click",function(){
-        document.getElementById()
-    });
-   
+    });   
     
     editor.on('change',function(cMirror,changeobj){
         
@@ -566,8 +583,8 @@ function create_peer()
     else
     {
         peer=new Peer(username,{
-            host:'10.1.38.163',
-            port:9000,
+            host:'10.2.138.205',
+            port:8000,
             path:"/myapp"
         })
         peer.on("open",function(id){
@@ -622,9 +639,9 @@ function create_peer()
                             crdt.cmanager.broadcast(char,conn,data['method'])
                             console.log('remote_insert',char)
                             console.log('before remote_insert',crdt.chars)
-                            a=editor.getCursor()
+                            //a=editor.getCursor()
                             crdt.remote_insert(char)
-                            editor.setCursor(a)
+                            //editor.setCursor(a)
                             console.log('after remote insert',crdt.chars)
                         }
                         else
@@ -659,6 +676,7 @@ function create_peer()
             
             });
         });
+        return true
     }
 }
 
@@ -711,9 +729,9 @@ function connect(peerId)
                     
                     var char=new Char(id_list,temp.value)
                     crdt.cmanager.broadcast(char,con,data['method'])
-                    a=editor.getCursor()
+                    //a=editor.getCursor()
                     crdt.remote_insert(char)
-                    editor.setCursor(a)
+                    //editor.setCursor(a)
                     console.log("after insertion",crdt.chars)
                 }
                 else
@@ -746,19 +764,31 @@ function connect(peerId)
             }
         })
         alert("connected")
+        return true
         
     });
     con.on("error",function(e){
         alert(e.type)
+        return false
     })
 }
 
 function test1(){
-    
+    console.log(crdt.cmanager)
     editor.setOption('readOnly',false)
+    username=document.getElementById("Username").value
     cmanager=new ConnectionManager(username)
     crdt.cmanager=cmanager
-    create_peer()
+    console.log(crdt.cmanager)
+    x=create_peer()
+    if(x==false){
+        editor.setOption('readOnly',true);
+        return false
+    }
+    else{
+        return true
+    }
+
 }
 
 function test2(){
