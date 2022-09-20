@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/NVBDattatreyach/ColaborativeTextEditor/issues"
   },
-  "homepage": "https://github.com/NVBDattatreyach/ColaborativeTextEditor#readme"
+  "homepage": "https://github.com/NVBDattatreyach/ColaborativeTextEditor#readme",
+  "dependencies": {
+    "peer": "^0.6.1"
+  }
 }

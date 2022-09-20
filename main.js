@@ -583,7 +583,7 @@ function create_peer()
     else
     {
         peer=new Peer(username,{
-            host:'10.2.138.205',
+            host:'10.171.173.26',
             port:8000,
             path:"/myapp"
         })
