@@ -584,7 +584,7 @@ function create_peer()
     {
         peer=new Peer(username,{
             host:'10.171.173.26',
-            port:8000,
+            port:9000,
             path:"/myapp"
         })
         peer.on("open",function(id){
@@ -597,7 +597,6 @@ function create_peer()
                 console.log("recieved connection",conn)
                 cmanager.connections.push(conn)
                 cmanager.initialize(conn)
-                
                 conn.on("data",function(data){
                     data=JSON.parse(data)
                     console.log(data['method'])
@@ -643,6 +642,7 @@ function create_peer()
                             crdt.remote_insert(char)
                             //editor.setCursor(a)
                             console.log('after remote insert',crdt.chars)
+                            // adding to see 
                         }
                         else
                         {
@@ -799,6 +799,4 @@ function test2(){
 }
 function test3(data){
     editor.setValue(data)
-
-    
 }
