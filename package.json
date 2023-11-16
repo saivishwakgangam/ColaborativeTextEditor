@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/NVBDattatreyach/ColaborativeTextEditor#readme",
   "dependencies": {
-    "peer": "^0.6.1"
+    "peer": "^0.6.1",
+    "peerjs": "^1.5.1"
   }
 }

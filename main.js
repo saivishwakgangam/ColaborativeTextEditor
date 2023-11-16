@@ -583,9 +583,10 @@ function create_peer()
     else
     {
         peer=new Peer(username,{
-            host:'10.171.173.26',
+            host:'10.171.247.143',
             port:9000,
-            path:"/myapp"
+            path:"/myapp",
+            debug:3
         })
         peer.on("open",function(id){
             console.log("My peer id is ",id)
